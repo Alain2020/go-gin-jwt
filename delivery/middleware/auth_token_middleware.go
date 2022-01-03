@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"go-gin-jwt/authenticator"
-	"log"
 	"net/http"
 	"strings"
 
@@ -35,11 +34,11 @@ func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 			}
 
 			tokenString := strings.Replace(h.AuthorizationHeader, "Bearer ", "", -1)
-			log.Println(tokenString)
 			if tokenString == "" {
 				c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 				c.Abort()
 			}
+
 			token, err := a.accessToken.VerifyAccessToken(tokenString)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
@@ -49,7 +48,17 @@ func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 				return
 			}
 
+			userName, err := a.accessToken.FetchAccessToken(token)
+			if userName == "" || err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"message": "unauthorized",
+				})
+				c.Abort()
+				return
+			}
+
 			if token != nil {
+				c.Set("username", userName)
 				c.Next()
 			} else {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
