@@ -24,7 +24,7 @@ func main() {
 		ApplicationName:     "ENIGMA",
 		JwtSigningMethod:    jwt.SigningMethodHS256,
 		JwtSignatureKey:     "P@ssw0rd",
-		AccessTokenLifeTime: 30 * time.Second,
+		AccessTokenLifeTime: 3600 * time.Second,
 		Client:              client,
 	}
 	tokenService := authenticator.NewTokenService(tokenConfig)
@@ -65,6 +65,17 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"user": c.GetString("username"),
 		})
+	})
+	publicRoute.POST("/logout", func(c *gin.Context) {
+		if err := tokenService.DeleteAccessToken(c.GetString("uuid")); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"message": "internal server error",
+			})
+			return
+		} else {
+			c.JSON(http.StatusOK, gin.H{"message": gin.H{"message": "success to logout"}})
+			return
+		}
 	})
 
 	r.GET("/customer", func(c *gin.Context) {

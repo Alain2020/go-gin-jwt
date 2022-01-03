@@ -17,6 +17,7 @@ type Token interface {
 	VerifyAccessToken(tokenString string) (*AccessDetails, error)
 	StoreAccessToken(userName string, tokenDetails *TokenDetails) error
 	FetchAccessToken(accessDetails *AccessDetails) (string, error)
+	DeleteAccessToken(accessUuid string) error
 }
 
 type TokenConfig struct {
@@ -114,5 +115,14 @@ func (t *token) FetchAccessToken(accessDetails *AccessDetails) (string, error) {
 		return userName, nil
 	} else {
 		return "", errors.New("invalid Access")
+	}
+}
+
+func (t *token) DeleteAccessToken(accessUuid string) error {
+	if accessUuid != "" {
+		rd := t.Config.Client.Del(context.Background(), accessUuid)
+		return rd.Err()
+	} else {
+		return errors.New("token not found")
 	}
 }

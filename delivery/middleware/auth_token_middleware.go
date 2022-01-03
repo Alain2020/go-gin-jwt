@@ -59,6 +59,7 @@ func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 
 			if token != nil {
 				c.Set("username", userName)
+				c.Set("uuid", token.AccessUuid)
 				c.Next()
 			} else {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
