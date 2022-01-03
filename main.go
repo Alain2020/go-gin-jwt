@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +33,8 @@ type authHeader struct {
 func main() {
 	r := gin.Default()
 	r.Use(AuthtokenMidddleware())
-	r.POST("/login", func(c *gin.Context) {
+	publicRoute := r.Group("/enigma")
+	publicRoute.POST("/auth", func(c *gin.Context) {
 		var user Credential
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -44,7 +47,7 @@ func main() {
 			token, err := GenerateToken(user.Username, "user@gmail.com")
 			if err != nil {
 				log.Println(err)
-				c.AbortWithStatus(http.StatusUnauthorized)
+				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
 			c.JSON(http.StatusOK, gin.H{
@@ -53,6 +56,12 @@ func main() {
 		} else {
 			c.AbortWithStatus(http.StatusUnauthorized)
 		}
+	})
+
+	publicRoute.GET("/user", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"user": "user",
+		})
 	})
 
 	r.GET("/customer", func(c *gin.Context) {
@@ -65,9 +74,25 @@ func main() {
 
 }
 
+func parseToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if method, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("signing method invalid")
+		} else if method != JwtSigningMethod {
+			return nil, fmt.Errorf("signing method invalid")
+		}
+		return JwtSignatureKey, nil
+	})
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, err
+	}
+	return claims, nil
+}
+
 func AuthtokenMidddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/login" {
+		if c.Request.URL.Path == "/enigma/auth" {
 			c.Next()
 		} else {
 			h := authHeader{}
@@ -76,12 +101,27 @@ func AuthtokenMidddleware() gin.HandlerFunc {
 				c.Abort()
 			}
 
-			if h.AuthorizationHeader == "1234" {
+			tokenString := strings.Replace(h.AuthorizationHeader, "Bearer ", "", -1)
+			log.Println(tokenString)
+			if tokenString == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+				c.Abort()
+			}
+			token, err := parseToken(tokenString)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Internal server error",
+				})
+				c.Abort()
+				return
+			}
+
+			if token["iss"] == ApplicationName {
 				c.Next()
 			} else {
 				c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 				c.Abort()
-
+				return
 			}
 		}
 	}
