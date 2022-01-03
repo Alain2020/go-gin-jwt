@@ -1,14 +1,27 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 )
 
 type Credential struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+var ApplicationName = "ENIGMA"
+var JwtSigningMethod = jwt.SigningMethodHS256
+var JwtSignatureKey = []byte("P@ssw0rd")
+
+type MyClaims struct {
+	jwt.StandardClaims
+	Username string `json:"Username"`
+	Email    string `json:"Email"`
 }
 
 type authHeader struct {
@@ -28,8 +41,14 @@ func main() {
 		}
 
 		if user.Username == "enigma" && user.Password == "123" {
+			token, err := GenerateToken(user.Username, "user@gmail.com")
+			if err != nil {
+				log.Println(err)
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
 			c.JSON(http.StatusOK, gin.H{
-				"token": "123",
+				"token": token,
 			})
 		} else {
 			c.AbortWithStatus(http.StatusUnauthorized)
@@ -66,4 +85,18 @@ func AuthtokenMidddleware() gin.HandlerFunc {
 			}
 		}
 	}
+}
+
+func GenerateToken(userName string, email string) (string, error) {
+	claims := MyClaims{
+		StandardClaims: jwt.StandardClaims{
+			Issuer:   ApplicationName,
+			IssuedAt: time.Now().Unix(),
+		},
+		Username: userName,
+		Email:    email,
+	}
+
+	token := jwt.NewWithClaims(JwtSigningMethod, claims)
+	return token.SignedString(JwtSignatureKey)
 }
