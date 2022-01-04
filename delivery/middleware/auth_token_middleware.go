@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"go-gin-jwt/authenticator"
+	"go-gin-jwt/service"
 	"net/http"
 	"strings"
 
@@ -13,18 +13,18 @@ type authHeader struct {
 }
 
 type AuthTokenMiddleware struct {
-	accessToken authenticator.Token
+	tokenService service.TokenServiceEntity
 }
 
-func NewTokenValidator(accessToken authenticator.Token) *AuthTokenMiddleware {
+func NewTokenValidator(tokenService service.TokenServiceEntity) *AuthTokenMiddleware {
 	return &AuthTokenMiddleware{
-		accessToken: accessToken,
+		tokenService: tokenService,
 	}
 }
 
 func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/enigma/auth" {
+		if c.Request.URL.Path == "/api/auth/login" {
 			c.Next()
 		} else {
 			h := authHeader{}
@@ -39,7 +39,7 @@ func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 				c.Abort()
 			}
 
-			token, err := a.accessToken.VerifyAccessToken(tokenString)
+			token, err := a.tokenService.VerifyAccessToken(tokenString)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"message": "unauthorized",
@@ -48,7 +48,7 @@ func (a *AuthTokenMiddleware) RequireToken() gin.HandlerFunc {
 				return
 			}
 
-			userName, err := a.accessToken.FetchAccessToken(token)
+			userName, err := a.tokenService.FetchAccessToken(token)
 			if userName == "" || err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"message": "unauthorized",

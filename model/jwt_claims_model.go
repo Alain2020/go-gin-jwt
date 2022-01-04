@@ -1,8 +1,8 @@
-package authenticator
+package model
 
 import "github.com/golang-jwt/jwt"
 
-type MyClaims struct {
+type JwtClaims struct {
 	jwt.StandardClaims
 	Username   string `json:"Username"`
 	Email      string `json:"Email"`
